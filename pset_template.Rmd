@@ -1,6 +1,6 @@
 ---
 title: "Add Pset name here"
-author: "Your Name Here"
+author: "Aaliyah Robertson"
 date: "Date Here"
 output: pdf_document
 ---
