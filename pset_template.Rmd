@@ -27,36 +27,101 @@ Late coins used this pset: 0. Late coins left: 4. <!--You may use one for a give
 
 <!--Note: Please do not restate questions in your submissions, directly write your answer--->
 
-## First Section
+                 SECTION 4 DATA EXPLORATION IN JSON 
+                 
+4.1) Based of Chapter 24 and reviewing the waze data link, JSON is  hierarchical data structure that includes arrays and nested objects. JSON data can also support a wider range of data as opposed the CSV type we have used in class. CSV data is in most cases smaller and more compact compared to JSON data.
 
-<!--(Notice the use of two `##`)-->
-
-1.  YOUR TEXT ANSWER GOES HERE (Please delete)
-
--   The dash symbol creates unordered list
-
--   Another example
-
-    1.  numbering creates ordered list
-    2.  Another example
-
-    -   like This
-    -   Like this as well
-
-**Delete all the text in `1.` before you write your answer**
-
+4.2) VERIFY ERROR****
 ```{r}
-# YOUR CODE GOES HERE  (Please delete)
-ggplot(mpg, aes(manufacturer)) + geom_bar()
+install.packages("jsonlite")
+library(jsonlite)
+library(tidyverse)
+```
+```{r}
+json_string <- jsonlite::stream_in(url("https://www.waze.com/partnerhub-api/waze-feed-access-token/69c3e9b3-182c-4ec9-a5f3-c0e176568a3d?format=1"))
+
+json_list <- as.list(json_string)
+```
+4.3) The length of the data is 7 and the names are "alerts, startTimeMillis, jams, endTimeMillis, irregularities, startTime, and endTime."
+
+#What is the length 
+```{r}
+length(json_string)
+```
+#What are the names
+```{r}
+names(json_string)
 ```
 
-
-## Second Section
-
-1.  YOUR TEXT ANSWER GOES HERE (Please delete)
-
+#What items can be tibbles CHATGPT Query**
 ```{r}
-# YOUR CODE GOES HERE  (Please delete)
-ggplot(mtcars, aes(factor(cyl), mpg)) + geom_violin(aes(fill=mpg))
+str(json_string$alerts)
 ```
+```{r}
+str(json_list$irregularities)
+```
+
+                           SECTION FIVE DATA CLEANING**** need help.
+                           
+                           
+                           
+                           
+                           
+                           
+                           
+                           
+
+SECTION 7 WAZE SINGLE EVENT 
+
+7.1a)
+#Inspecing the UUID
+```{r}
+event_uuid <- "a42bc14b-e080-4621-9221-29dd86e553ce"
+
+event_location <- waze_data %>%
+  filter(uuid == event_uuid) %>%
+  select(geo, geoWKT) %>%
+  distinct()
+
+event_location
+```
+```{r}************
+latitude_min <- 41.88
+latitude_max <- 41.90
+longitude_min <- -87.64
+longitude_max <- -87.60
+
+accidents_jams_events <- waze_data %>%
+  filter(type %in% c("JAM", "ACCIDENT")) %>%
+  filter(geoWKT >= paste0("POINT(", longitude_min, " ", latitude_min, ")") & 
+           geoWKT <= paste0("POINT(", longitude_max, " ", latitude_max, ")"))
+
+```
+7.1b)
+
+7.1c)
+```{r}
+
+library(lubridate)
+library(ggplot2)
+jams <- waze_data %>% filter(type == "JAM")
+jams$ts <- with_tz(parse_date_time(jams$ts, "ymd HMS"), "UTC") %>% 
+  force_tz("America/Chicago")
+
+jams_times <- jams %>% 
+  filter(hour(ts) >= 6 & hour(ts) <= 17)
+
+ggplot(jams_times, aes(x = hour(ts))) +
+  geom_histogram() +
+  xlab("6AM-6PM (CST)") +
+  ylab("Number of Jams")
+```
+
+7.1d)
+
+7.1e)
+
+
+
+
 
