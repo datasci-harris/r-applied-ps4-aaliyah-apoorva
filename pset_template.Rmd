@@ -1,7 +1,7 @@
 ---
-title: "Add Pset name here"
+title: "APPLIED PSET4"
 author: "Aaliyah R. Robertson"
-date: "Date Here"
+date: "May 14th, 2023"
 output: pdf_document
 ---
 
@@ -28,10 +28,14 @@ Late coins used this pset: 0. Late coins left: 4. <!--You may use one for a give
 <!--Note: Please do not restate questions in your submissions, directly write your answer--->
 
                  SECTION 4 DATA EXPLORATION IN JSON 
-                 
-4.1) Based of Chapter 24 and reviewing the waze data link, JSON is  hierarchical data structure that includes arrays and nested objects. JSON data can also support a wider range of data as opposed the CSV type we have used in class. CSV data is in most cases smaller and more compact compared to JSON data.
+             
+```{r}
+setwd("/Users/aaliyahrobertson/Downloads")
+waze_data <- read_rds("waze_data.rds")
+```
+4.1) Based on Chapter 24 and reviewing the waze data link, JSON is  hierarchical data structure that includes arrays and nested objects. JSON data can also support a wider range of data as opposed to the CSV type we have used in class. CSV data is in most cases, smaller and more compact compared to JSON data.
 
-4.2) VERIFY ERROR****
+4.2)
 ```{r}
 install.packages("jsonlite")
 library(jsonlite)
@@ -52,7 +56,6 @@ length(json_string)
 ```{r}
 names(json_string)
 ```
-
 #What items can be tibbles CHATGPT Query**
 ```{r}
 str(json_string$alerts)
@@ -61,67 +64,147 @@ str(json_string$alerts)
 str(json_list$irregularities)
 ```
 
-                           SECTION FIVE DATA CLEANING**** need help.
-                           
-                           
-                           
-                           
-                           
-                           
-                           
-                           
-
-SECTION 7 WAZE SINGLE EVENT 
-
-7.1a)
-#Inspecing the UUID
+                   SECTION FIVE DATA CLEANING
+5.1) 
 ```{r}
-event_uuid <- "a42bc14b-e080-4621-9221-29dd86e553ce"
+library(testthat)
+test_that("the waze data in the RDS format has the correct number of rows",
+          {expect_equal(nrow(waze_data), 737357)})
+```
 
+5.2) Chicago Illinois
+```{r}
+cities_in_waze <- unique(waze_data$city)
+print(cities_in_waze)
+```
+                           
+5.3)
+```{r}
+library(dplyr)
+library(tidyr)
+waze_data <- separate(waze_data, col = "geo", into = c("latitude", "longitude"), sep = " ")
+waze_data$latitude <- gsub("POINT|\\(|\\)", "", waze_data$latitude)
+waze_data$longitude <- gsub("[()]", "", waze_data$longitude)
+```
+
+5.4) 
+#ChatGPT query, 
+The most commons alerts are weather hazards and traffic jams.
+```{r}
+library(ggplot2)
+library(lubridate)
+
+waze_data$hour <- hour(as.POSIXct(waze_data$ts))
+
+ggplot(waze_data, aes(x = hour, fill = type)) +
+  geom_histogram(binwidth = 1, position = "identity") +
+  labs(x = "Hour of Day", y = "Number of Alerts", title = "Alerts by Hour of Day") +
+  scale_fill_discrete(name = "Type of Alert")
+
+```
+
+5.5)
+```{r}
+library(lubridate)
+waze_data$ts <- as.POSIXct(waze_data$ts, tz = "UTC")
+waze_data$ts_ct <- with_tz(waze_data$ts, "America/Chicago")
+```
+```{r}
+waze_data$ts_ct_rounded <- round_date(waze_data$ts_ct, "5 minutes")
+```
+                       
+                        SECTION 7 WAZE SINGLE EVENT 
+
+7.1a)****
+#Define a bounding box around the event. Construct a data frame with all jams and accidents around the event.
+```{r}
+library(dplyr)
+event_uuid <- "a42bc14b-e080-4621-9221-29dd86e553ce"
 event_location <- waze_data %>%
   filter(uuid == event_uuid) %>%
-  select(geo, geoWKT) %>%
+  select(latitude, longitude) %>%
   distinct()
-
 event_location
 ```
-```{r}************
-latitude_min <- 41.88
-latitude_max <- 41.90
-longitude_min <- -87.64
-longitude_max <- -87.60
 
-accidents_jams_events <- waze_data %>%
-  filter(type %in% c("JAM", "ACCIDENT")) %>%
-  filter(geoWKT >= paste0("POINT(", longitude_min, " ", latitude_min, ")") & 
-           geoWKT <= paste0("POINT(", longitude_max, " ", latitude_max, ")"))
+#ChatGPT query
+```{r}
+latitude <- as.numeric(event_location$latitude)
+longitude <- as.numeric(event_location$longitude)
 
+box_range <- 0.1  
+
+latitude_min <- latitude - box_range
+latitude_max <- latitude + box_range
+longitude_min <- longitude - box_range
+longitude_max <- longitude + box_range
 ```
+```{r}
+events_within_bounding_box <- waze_data %>%
+  filter(as.numeric(latitude) >= latitude_min & as.numeric(latitude) <= latitude_max &
+           as.numeric(longitude) >= longitude_min & as.numeric(longitude) <= longitude_max)
+```
+
 7.1b)
+#What causes all these jams? Some googling might help.
+Based off the variables and going through the data, it looks like the cause for these jams are within the subtype variable which varies. It includes  accidents, road construction, congestion, weather conditions, traffic incidents, etc, that are the reasons for traffic jams.
 
 7.1c)
+#Plot the number of jams 6AM-6PM CST.
 ```{r}
-
-library(lubridate)
 library(ggplot2)
-jams <- waze_data %>% filter(type == "JAM")
-jams$ts <- with_tz(parse_date_time(jams$ts, "ymd HMS"), "UTC") %>% 
-  force_tz("America/Chicago")
-
-jams_times <- jams %>% 
-  filter(hour(ts) >= 6 & hour(ts) <= 17)
-
-ggplot(jams_times, aes(x = hour(ts))) +
-  geom_histogram() +
-  xlab("6AM-6PM (CST)") +
-  ylab("Number of Jams")
+uuid_plot <- events_within_bounding_box %>%
+  filter(format(ts_ct, "%H:%M:%S", tz = "America/Chicago") >= "06:00:00" &
+           format(ts_ct, "%H:%M:%S", tz = "America/Chicago") <= "18:00:00")
+```
+```{r}
+jam_counts <- uuid_plot %>%
+  mutate(hour = format(ts_ct, "%H")) %>%
+  group_by(hour) %>%
+  summarise(num_jams = n())
+```
+```{r}
+ggplot(jam_counts, aes(x = hour, y = num_jams)) +
+  geom_bar(stat = "identity", fill = "pink") +
+  labs(title = "Number of Jams between 6AM-6PM CST", x = "Hour", y = "Number of Jams")
 ```
 
-7.1d)
+
+
+7.1d) 
+#Next, propose a quantitative measure of traffic jam severity that combines the number of traffic
+```{r}
+severity_weights <- c(
+  "JAM_STAND_STILL_TRAFFIC" = 5,
+  "JAM_HEAVY_TRAFFIC" = 4,
+  "ACCIDENT_MAJOR" = 5
+)
+
+severity_measure <- uuid_plot %>%
+  mutate(severity_measure = confidence * severity_weights[subtype]) %>%
+  summarise(total_severity = sum(severity_measure, na.rm = TRUE))
+
+severity_measure$total_severity
+
+```
 
 7.1e)
+#Plot this measure from 6AM-6PM CST.
+```{r}
+severity_plot <- uuid_plot %>%
+  mutate(hour = as.numeric(format(ts_ct, "%H")),
+         severity_measure = confidence * severity_weights[subtype]) %>%
+  filter(hour >= 6 & hour <= 18) %>%
+  group_by(hour) %>%
+  summarise(total_severity = sum(severity_measure, na.rm = TRUE))
+
+ggplot(severity_plot, aes(x = hour, y = total_severity)) +
+  geom_line(color = "pink") +
+  geom_point(color = "pink", size = 3) +
+  labs(title = "Traffic Jam Severity between 6AM-6PM CST", x = "Hour", y = "Severity Measure")
+```
 
 
-
+                 
 
 
